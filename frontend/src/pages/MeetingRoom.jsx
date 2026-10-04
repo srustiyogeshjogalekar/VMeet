@@ -33,6 +33,7 @@ export default function MeetingRoom() {
   const [locked, setLocked] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatText, setChatText] = useState("");
+  const [chatSending, setChatSending] = useState(false);
   const [panel, setPanel] = useState("people");
   const [notice, setNotice] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -468,8 +469,23 @@ export default function MeetingRoom() {
     event.preventDefault();
     const text = chatText.trim();
     if (!text) return;
-    socketRef.current?.emit("room:chat", { text });
-    setChatText("");
+    const socket = socketRef.current;
+    if (!socket?.connected) {
+      setNotice("You're not connected to the meeting. Your message wasn't sent.");
+      return;
+    }
+    setChatSending(true);
+    socket.timeout(5_000).emit("room:chat", { text }, (timeoutError, response) => {
+      setChatSending(false);
+      if (timeoutError) {
+        setNotice("Your message could not be sent. Check your connection and try again.");
+      } else if (response?.error) {
+        setNotice(response.error);
+      } else {
+        setNotice("");
+        setChatText((current) => current === text ? "" : current);
+      }
+    });
   }
 
   async function attachFile(event) {
@@ -480,6 +496,11 @@ export default function MeetingRoom() {
       setNotice("Files must be 1 MB or smaller.");
       return;
     }
+    const socket = socketRef.current;
+    if (!socket?.connected) {
+      setNotice("You're not connected to the meeting. Your attachment wasn't sent.");
+      return;
+    }
     try {
       const data = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -487,7 +508,11 @@ export default function MeetingRoom() {
         reader.onerror = () => reject(reader.error || new Error("File could not be read."));
         reader.readAsDataURL(file);
       });
-      socketRef.current?.emit("room:chat", { file: { name: file.name, data } });
+      socket.timeout(5_000).emit("room:chat", { file: { name: file.name, data } }, (timeoutError, response) => {
+        if (timeoutError) setNotice("Your attachment could not be sent. Check your connection and try again.");
+        else if (response?.error) setNotice(response.error);
+        else setNotice("");
+      });
     } catch (error) {
       setNotice(`Could not attach file: ${error.message}`);
     }
@@ -588,9 +613,9 @@ export default function MeetingRoom() {
               <button className={`control-button${selfParticipant.handRaised ? " control-active" : ""}`} onClick={() => updateSelf({ handRaised: !selfParticipant.handRaised })} title="Raise hand" aria-label="Raise hand"><Hand size={19} /></button>
             </div>
             <div className="control-group secondary-controls">
-              <button className={`control-button${panel === "people" ? " control-active" : ""}`} onClick={() => setPanel(panel === "people" ? "" : "people")} title="Participants"><Users size={19} /><span>{participants.length}</span></button>
-              <button className={`control-button${panel === "chat" ? " control-active" : ""}`} onClick={() => setPanel(panel === "chat" ? "" : "chat")} title="Chat"><MessageCircle size={19} /></button>
-              <button className="leave-button" onClick={leaveMeeting} title={isHost ? "End meeting for everyone" : "Leave meeting"}><LogOut size={18} /><span>{isHost ? "End" : "Leave"}</span></button>
+              <button className={`control-button${panel === "people" ? " control-active" : ""}`} onClick={() => setPanel(panel === "people" ? "" : "people")} title="Participants" aria-label="Participants"><Users size={19} /><span>{participants.length}</span></button>
+              <button className={`control-button${panel === "chat" ? " control-active" : ""}`} onClick={() => setPanel(panel === "chat" ? "" : "chat")} title="Chat" aria-label="Chat"><MessageCircle size={19} /></button>
+              <button className="leave-button" onClick={leaveMeeting} title={isHost ? "End meeting for everyone" : "Leave meeting"} aria-label={isHost ? "End meeting for everyone" : "Leave meeting"}><LogOut size={18} /><span>{isHost ? "End" : "Leave"}</span></button>
             </div>
           </div>
           <div className="stage-footer"><span><Shield size={14} /> Calls are encrypted in transit</span><button onClick={() => setShowInvite(true)}><Link2 size={14} /> Copy invite link</button></div>
@@ -634,8 +659,8 @@ export default function MeetingRoom() {
                 </div>
                 <form className="chat-compose" onSubmit={sendMessage}>
                   {!permissions.chat && !isHost && !selfParticipant.cohost ? <p>The host has disabled chat.</p> : <>
-                    <textarea aria-label="Write a message" value={chatText} onChange={(event) => setChatText(event.target.value)} placeholder="Send a message…" maxLength={5000} rows={2} />
-                    <div className="compose-actions"><label className="attach-button" title="Attach a file"><Paperclip size={17} /><input type="file" onChange={attachFile} /></label><div className="emoji-buttons" aria-label="Quick emojis">{CHAT_EMOJIS.map((emoji) => <button key={emoji} type="button" aria-label={`Add ${emoji}`} title={`Add ${emoji}`} onClick={() => setChatText((value) => `${value}${value ? " " : ""}${emoji}`)}>{emoji}</button>)}</div><button className="send-button" type="submit" disabled={!chatText.trim()} aria-label="Send message"><Send size={17} /></button></div>
+                    <textarea aria-label="Write a message" value={chatText} onChange={(event) => setChatText(event.target.value)} placeholder="Send a message…" maxLength={5000} rows={2} disabled={chatSending} />
+                    <div className="compose-actions"><label className="attach-button" title="Attach a file"><Paperclip size={17} /><input type="file" onChange={attachFile} /></label><div className="emoji-buttons" aria-label="Quick emojis">{CHAT_EMOJIS.map((emoji) => <button key={emoji} type="button" aria-label={`Add ${emoji}`} title={`Add ${emoji}`} disabled={chatSending} onClick={() => setChatText((value) => `${value}${value ? " " : ""}${emoji}`)}>{emoji}</button>)}</div><button className="send-button" type="submit" disabled={!chatText.trim() || chatSending} aria-label="Send message"><Send size={17} /></button></div>
                     <span className="file-hint">Share a file up to 1 MB</span>
                   </>}
                 </form>

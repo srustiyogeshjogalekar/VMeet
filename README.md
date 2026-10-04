@@ -1,6 +1,6 @@
 ## VMeet video calls
 
-This workspace contains a browser-based, peer-to-peer video meeting app. A host creates a private room and shares its link; guests join with a display name. Calls support microphone/camera controls, front/rear camera switching on compatible mobile devices, screen sharing, participant status and hand raising, in-call text/emoji/file chat, host mute/remove/lock/co-host controls, and chat/screen-share permissions. Browser echo cancellation and noise suppression are requested for microphone capture. Peer connection statistics drive a basic outgoing-video bitrate adaptation.
+This workspace contains a responsive, browser-based, peer-to-peer video meeting app. Its landing, account, join, and call screens adapt to phone and tablet layouts, with meeting controls and panels sized for touch. A host creates a private room and shares its link; guests join with a display name. Calls support microphone/camera controls, front/rear camera switching on compatible mobile devices, screen sharing, participant status and hand raising, in-call text/emoji/file chat, host mute/remove/lock/co-host controls, and chat/screen-share permissions. Browser echo cancellation and noise suppression are requested for microphone capture. Peer connection statistics drive a basic outgoing-video bitrate adaptation.
 
 ### Accounts
 
@@ -12,11 +12,11 @@ For production, set a strong random `JWT_SECRET` (at least 32 random bytes) and 
 
 Use Node.js 20 or newer.
 
-1. In `backend`, run `npm install` and then `npm start` (listens on port 3001).
+1. In `backend`, run `npm install` and then `npm start` (listens on port 3002 by default).
 2. In `frontend`, run `npm install` and then `npm run dev` (Vite listens on port 5173).
 3. Open `http://localhost:5173`. Microphone and camera access require HTTPS in production (localhost is permitted by browsers).
 
-Set `PORT` and `FRONTEND_ORIGIN` on the signaling server to change its port or allowed web origin. Set `VITE_API_URL` in the frontend environment to the signaling server URL when it is not `http://localhost:3001`.
+Set `PORT` and `FRONTEND_ORIGIN` on the signaling server to change its port or allowed web origin. In development, localhost frontend origins are allowed on any port. Set `VITE_API_URL` in the frontend environment to the signaling server URL when it is not `http://localhost:3002`.
 
 ### Deployment and limitations
 

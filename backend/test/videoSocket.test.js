@@ -72,6 +72,15 @@ function receive(socket, event) {
   return new Promise((resolve) => socket.once(event, resolve));
 }
 
+function emitChat(socket, message) {
+  return new Promise((resolve, reject) => {
+    socket.timeout(1_000).emit("room:chat", message, (error, response) => {
+      if (error) reject(error);
+      else resolve(response);
+    });
+  });
+}
+
 test("authenticates meeting roles, isolates rooms, enforces moderation, and caps mesh participants", async () => {
   const host = await connect();
   const hostJoin = await join(host, { roomId, name: "Host", hostToken });
@@ -100,11 +109,13 @@ test("authenticates meeting roles, isolates rooms, enforces moderation, and caps
   host.once("room:chat", (message) => {
     blockedGuestMessageReceived = message.text === "should not be delivered";
   });
-  guest.emit("room:chat", { text: "should not be delivered" });
+  const rejectedMessage = await emitChat(guest, { text: "should not be delivered" });
   await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.match(rejectedMessage.error, /disabled chat/);
   assert.equal(blockedGuestMessageReceived, false);
   const hostChat = receive(guest, "room:chat");
-  host.emit("room:chat", { text: "host can still moderate" });
+  const acceptedMessage = await emitChat(host, { text: "host can still moderate" });
+  assert.deepEqual(acceptedMessage, { success: true });
   assert.equal((await hostChat).text, "host can still moderate");
 
   const otherRoomJoin = await join(await connect(), { roomId: "missing-room", name: "Stranger" });

@@ -248,14 +248,29 @@ function attachVideoSocket(io, meetings, database) {
       emitParticipants(io, room);
     });
 
-    socket.on("room:chat", (message = {}) => {
-      if (!message || typeof message !== "object") return;
+    socket.on("room:chat", (message = {}, acknowledge = () => {}) => {
+      if (typeof acknowledge !== "function") return;
+      const reject = (error) => acknowledge({ error });
+      if (!message || typeof message !== "object") {
+        reject("Invalid chat message.");
+        return;
+      }
       const room = meetings.get(socket.data.roomId);
       const participant = room?.participants.get(socket.id);
-      if (!room || !participant || (!room.permissions.chat && !participant.host && !participant.cohost)) return;
+      if (!room || !participant) {
+        reject("Join the meeting before sending a message.");
+        return;
+      }
+      if (!room.permissions.chat && !participant.host && !participant.cohost) {
+        reject("The host has disabled chat.");
+        return;
+      }
       const text = typeof message.text === "string" ? message.text.trim() : "";
       const file = message.file;
-      if (text.length > MAX_CHAT_LENGTH) return;
+      if (text.length > MAX_CHAT_LENGTH) {
+        reject(`Messages must be ${MAX_CHAT_LENGTH} characters or fewer.`);
+        return;
+      }
       if (
         file &&
         (typeof file.name !== "string" ||
@@ -263,8 +278,14 @@ function attachVideoSocket(io, meetings, database) {
           typeof file.data !== "string" ||
           file.data.length > MAX_FILE_SIZE ||
           !/^data:[\w.+/-]+;base64,/.test(file.data))
-      ) return;
-      if (!text && !file) return;
+      ) {
+        reject("This attachment is invalid or too large.");
+        return;
+      }
+      if (!text && !file) {
+        reject("Enter a message or attach a file.");
+        return;
+      }
       const outgoing = {
         id: crypto.randomUUID(),
         senderId: participant.id,
@@ -302,10 +323,12 @@ function attachVideoSocket(io, meetings, database) {
         } catch (error) {
           console.error("Could not save meeting chat message.", error);
           socket.emit("room:chat:error", { error: "Your message could not be saved. Please try again." });
+          reject("Your message could not be saved. Please try again.");
           return;
         }
       }
       io.to(room.id).emit("room:chat", outgoing);
+      acknowledge({ success: true });
     });
 
     socket.on("moderation:mute", (payload = {}) => {

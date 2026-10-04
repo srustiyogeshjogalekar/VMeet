@@ -15,9 +15,19 @@ const server = http.createServer(app);
 const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173,http://127.0.0.1:5173")
   .split(",")
   .map((origin) => origin.trim());
+function isAllowedOrigin(origin) {
+  if (!origin || allowedOrigins.includes(origin)) return true;
+  if (process.env.NODE_ENV === "production") return false;
+  try {
+    const url = new URL(origin);
+    return url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
     methods: ["GET", "POST"],
   },
   maxHttpBufferSize: 2_000_000,
@@ -54,7 +64,10 @@ async function startServer() {
   const authDatabase = await openDatabase(path.join(__dirname, "..", "data", "accounts.sqlite"));
   const authSecret = resolveAuthSecret();
   for (const [id, room] of initializeMeetingStore(authDatabase)) meetings.set(id, room);
-  app.use(cors({ origin: allowedOrigins, credentials: true }));
+  app.use(cors({
+    origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
+    credentials: true,
+  }));
   app.use(express.json({ limit: "16kb" }));
   app.use(cookieParser());
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
@@ -93,7 +106,7 @@ async function startServer() {
   });
 }
 
-const port = Number(process.env.PORT) || 3001;
+const port = Number(process.env.PORT) || 3002;
 startServer().catch((error) => {
   console.error("Could not start the VMeet server.", error);
   process.exitCode = 1;

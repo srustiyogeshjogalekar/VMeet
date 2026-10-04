@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Link2, Video } from "lucide-react";
-import { createMeeting } from "../services/socket";
+import { apiUrl, createMeeting } from "../services/socket";
 import { useAuth } from "../services/AuthContext";
 
 export default function Meetings() {
@@ -20,7 +20,7 @@ export default function Meetings() {
       if (checking) return;
       checking = true;
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/health`);
+        const response = await fetch(`${apiUrl}/api/health`);
         if (!response.ok) throw new Error("Signaling server is unavailable.");
         const health = await response.json();
         if (!cancelled) {
