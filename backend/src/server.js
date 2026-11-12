@@ -100,6 +100,23 @@ async function startServer() {
     res.status(201).json({ id, hostToken, maxParticipants: 8 });
   });
 
+  const frontendBuildPath = path.join(__dirname, "..", "..", "frontend", "dist");
+  if (fs.existsSync(frontendBuildPath)) {
+    app.use(express.static(frontendBuildPath));
+    app.get("*", (req, res, next) => {
+      if (
+        req.path === "/api" ||
+        req.path.startsWith("/api/") ||
+        req.path === "/socket.io" ||
+        req.path.startsWith("/socket.io/")
+      ) {
+        next();
+        return;
+      }
+      res.sendFile(path.join(frontendBuildPath, "index.html"));
+    });
+  }
+
   attachVideoSocket(io, meetings, authDatabase);
   server.listen(port, () => {
     console.log(`VMeet signaling server listening on port ${port}`);

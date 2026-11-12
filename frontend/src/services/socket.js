@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 
-export const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3002";
+export const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:3002" : "");
 
 export async function createMeeting() {
   let response;

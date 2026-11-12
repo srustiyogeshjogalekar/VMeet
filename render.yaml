@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: vmeet
+    runtime: node
+    plan: starter
+    buildCommand: npm ci --include=dev --prefix frontend && npm ci --prefix backend && npm run build --prefix frontend
+    startCommand: npm start --prefix backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+    disk:
+      name: vmeet-data
+      mountPath: /opt/render/project/src/backend/data
+      sizeGB: 1

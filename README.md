@@ -18,6 +18,16 @@ Use Node.js 20 or newer.
 
 Set `PORT` and `FRONTEND_ORIGIN` on the signaling server to change its port or allowed web origin. In development, localhost frontend origins are allowed on any port. Set `VITE_API_URL` in the frontend environment to the signaling server URL when it is not `http://localhost:3002`.
 
+### Deploy to Render
+
+The Render Blueprint in `render.yaml` deploys the frontend and backend together on one origin. This keeps account session cookies same-site and lets the backend serve the frontend routes and Socket.IO connection.
+
+1. In Render, create a new Blueprint Instance and connect this repository. Render reads `render.yaml` to build and start the service.
+2. The Blueprint uses a Starter web service and a 1 GB persistent disk mounted at `backend/data`. The disk is needed because accounts and meeting history are stored in SQLite; this configuration may incur charges.
+3. Wait for the service health check to pass, then open the service URL. The frontend and `/api/health` should be available on that same URL. Do not set `VITE_API_URL` for this deployment; production uses the current origin.
+
+The existing Netlify site only hosts the frontend and does not run the Node backend. Use the Render service URL for the deployed app. If deploying the frontend separately, configure its `VITE_API_URL` to a public backend URL and configure the backend's `FRONTEND_ORIGIN`; cross-site account cookies also require a compatible same-site domain setup.
+
 ### Deployment and limitations
 
 - Meeting rooms, hashed host credentials, lock state, and sharing/chat permissions are stored in `backend/data/accounts.sqlite`. After a server restart, rooms with no active connections get a one-hour reconnect grace period; empty rooms then expire after one hour.
