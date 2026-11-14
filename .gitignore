@@ -1,6 +1,4 @@
-node_modules/
-dist/
-backend/data/
+﻿node_modules/
 .env
-.env.*
-!.env.example
+dist/
+build/
